@@ -87,8 +87,40 @@ ptrans a c q = delta a (q, Just c) ++ concatMap consumeSim (clausura a [] q)
 -- inicial, en esta función tratamos de consumir la cadena desde cualquier
 -- estado.
 recorreDesde :: (Eq q,Eq s) => NFA q s -> [s] -> q -> [q]
-recorreDesde a cs q = --completar
+-- El caso base sería no recibir input, entonces tendríamos que ver a qué
+-- estados nos podemos mover haciendo ε-movs. Esto lo calcula la función
+-- clausura.
+recorreDesde a [] q = clausura a [] q
+-- Caso recursivo, tenemos que ver a todos los estados que llegamos a partir
+-- de un estado, esto nos lo resuelve la función ptrans. Y a todos los
+-- que llegamos a partir de los estados que ya obtuvimos, esto lo logramos
+-- aplicando ptrans a cada estado obtenido en el resultado anterior.
+-- Con este algoritmo vamos a obtener una lista con todos los estados finales.
+recorreDesde a (x:xs) q = concatMap (recorreDesde a xs) (ptrans a x q)
 
 -- Ejercicio: Decide si un autómata no determinístico reconoce o no una palabra.
 reconoce :: (Eq q,Eq s) => NFA q s -> [s] -> Bool
-reconoce a s = -- completar
+-- Si recibo el input vacío, entonces tengo que ver si aplicando ε-movs puedo
+-- llegar a un estado final. Como el resultado de la función clausura es una
+-- lista, tenemos que ver si al menos un estado es final, de esto se encarga
+-- la función auxiliar esFinalLista, que se explica más abajo.
+reconoce a [] = esFinalLista a (clausura a [] (inicial a))
+-- En el caso recursivo, tengo que ver cuáles son los estados que obtengo
+-- después de consumir la cadena y fijarme si al menos uno de estos es final.
+-- Usamos recorreDesde para consumir una cadena y obtener los últimos estados
+-- cuando consumimos la cadena, y a este resultado le aplicamos esFinalLista,
+-- para ver si hay alguno de ellos que es final.
+reconoce a (x:xs) = esFinalLista a (recorreDesde a (x:xs) (inicial a))
+
+--- Funciones auxiliares ---
+
+-- Esta función toma un NFA, una lista de estados, e indica si hay alguno de
+-- éstos que es final.
+esFinalLista :: (Eq q,Eq s) => NFA q s -> [q] -> Bool
+-- Si no hay ningún estado, entonces no es final, por lo tanto es falso.
+-- Resulta convieniente este resultado además porque es el valor neutro del
+-- operador lógico V.
+esFinalLista a [] = False
+-- En el caso recursivo, o bien es final el primer estado en la lista, o bien
+-- puede que se encuentre en la cola de la lista.
+esFinalLista a (x:xs) = (esFinal a x) || (esFinalLista a xs)
